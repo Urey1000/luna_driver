@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Luna Driver | Maps</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <style>
+    :root {
+      --primary: #10b981;
+      --danger: #f43f5e;
+      --dark: #1e293b;
+      --bg: #f8fafc;
+      --text-gray: #64748b;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .login-screen {
+      position: fixed;
+      inset: 0;
+      background: #fff;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      transition: 0.4s;
+    }
+
+    .login-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .login-logo {
+      font-size: 32px;
+      color: var(--primary);
+      font-weight: 700;
+      margin-bottom: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .login-logo i {
+      font-size: 48px;
+      background: var(--bg);
+      padding: 20px;
+      border-radius: 50%;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.15);
+    }
+
+    .login-form {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .login-input {
+      width: 100%;
+      padding: 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 16px;
+      outline: none;
+      background: var(--bg);
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 16px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .main-app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100%;
+    }
+
+    .driver-header {
+      background: #fff;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .driver-header h3 {
+      color: var(--dark);
+      font-size: 18px;
+    }
+
+    .status-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+    }
+
+    .status-toggle.online {
+      background: #d1fae5;
+      color: var(--primary);
+    }
+
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ccc;
+    }
+
+    .status-toggle.online .status-indicator {
+      background: var(--primary);
+      box-shadow: 0 0 8px var(--primary);
+    }
+
+    .driver-profile {
+      background: #fff;
+      padding: 10px 20px 15px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      z-index: 1000;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .profile-img {
+      width: 55px;
+      height: 55px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--primary);
+      padding: 2px;
+    }
+
+    .profile-details {
+      flex: 1;
+    }
+
+    .profile-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--dark);
+    }
+
+    .profile-vehicle,
+    .profile-rating {
+      font-size: 13px;
+      color: var(--text-gray);
+      margin-top: 3px;
+    }
+
+    #map {
+      flex: 1;
+      width: 100%;
+      z-index: 1;
+    }
+
+    .bottom-panel {
+      background: #fff;
+      padding: 15px 20px;
+      border-radius: 20px 20px 0 0;
+      box-shadow: 0 -4px 15px rgba(0,0,0,0.08);
+      z-index: 1000;
+    }
+
+    .location-text {
+      font-size: 14px;
+      color: var(--text-gray);
+      margin-bottom: 10px;
+    }
+
+    .btn-location {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .btn-location:active,
+    .btn-login:active {
+      transform: scale(0.98);
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- LOGIN -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-logo">
+      <i class="fa-solid fa-motorcycle"></i>
+      Luna Driver
+    </div>
+
+    <div class="login-form">
+      <input type="text" id="username" class="login-input" placeholder="Masukkan nama driver">
+      <input type="password" id="password" class="login-input" placeholder="Masukkan password">
+      <button class="btn-login" onclick="login()">Masuk</button>
+    </div>
+  </div>
+
+  <!-- APLIKASI -->
+  <div class="main-app">
+    <div class="driver-header">
+      <h3>Luna Driver</h3>
+
+      <button class="status-toggle" id="statusBtn" onclick="toggleOnline()">
+        <span class="status-indicator"></span>
+        <span id="statusText">Offline</span>
+      </button>
+    </div>
+
+    <div class="driver-profile">
+      <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="profile-img" alt="Driver">
+      <div class="profile-details">
+        <div class="profile-name">
+          Driver Luna <i class="fa-solid fa-circle-check" style="color:#10b981;"></i>
+        </div>
+        <div class="profile-vehicle">Motor • Plat Z 1234 AB</div>
+        <div class="profile-rating">
+          <i class="fa-solid fa-star" style="color:#facc15;"></i> 4.9
+        </div>
+      </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="bottom-panel">
+      <div class="location-text" id="locationText">
+        Mengambil lokasi driver...
+      </div>
+      <button class="btn-location" onclick="centerToDriver()">
+        <i class="fa-solid fa-location-crosshairs"></i> Pusatkan Lokasi Saya
+      </button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    let map;
+    let driverMarker;
+    let driverCircle;
+    let currentLat = -6.914744;
+    let currentLng = 107.609810;
+    let isOnline = false;
+    let watchId = null;
+
+    function login() {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      if (username === "" || password === "") {
+        alert("Nama driver dan password wajib diisi");
+        return;
+      }
+
+      document.getElementById("loginScreen").classList.add("hidden");
+
+      setTimeout(() => {
+        initMap();
+        startTrackingLocation();
+      }, 500);
+    }
+
+    function initMap() {
+      map = L.map("map").setView([currentLat, currentLng], 16);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "© OpenStreetMap"
+      }).addTo(map);
+
+      const driverIcon = L.divIcon({
+        html: `
+          <div style="
+            width:42px;
+            height:42px;
+            background:#10b981;
+            color:white;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            border:4px solid white;
+            box-shadow:0 4px 12px rgba(0,0,0,0.25);
+            font-size:18px;">
+            <i class="fa-solid fa-motorcycle"></i>
+          </div>
+        `,
+        className: "",
+        iconSize: [42, 42],
+        iconAnchor: [21, 21]
+      });
+
+      driverMarker = L.marker([currentLat, currentLng], {
+        icon: driverIcon
+      }).addTo(map);
+
+      driverCircle = L.circle([currentLat, currentLng], {
+        radius: 40,
+        color: "#10b981",
+        fillColor: "#10b981",
+        fillOpacity: 0.15
+      }).addTo(map);
+    }
+
+    function startTrackingLocation() {
+      if (!navigator.geolocation) {
+        alert("Browser tidak mendukung GPS/lokasi");
+        return;
+      }
+
+      watchId = navigator.geolocation.watchPosition(
+        function(position) {
+          currentLat = position.coords.latitude;
+          currentLng = position.coords.longitude;
+
+          updateDriverLocation(currentLat, currentLng);
+
+          document.getElementById("locationText").innerHTML =
+            `Lokasi aktif: ${currentLat.toFixed(6)}, ${currentLng.toFixed(6)}`;
+        },
+        function(error) {
+          let message = "Gagal mengambil lokasi.";
+
+          if (error.code === 1) {
+            message = "Izin lokasi ditolak. Aktifkan izin lokasi di browser.";
+          } else if (error.code === 2) {
+            message = "Lokasi tidak tersedia. Pastikan GPS aktif.";
+          } else if (error.code === 3) {
+            message = "Waktu mengambil lokasi habis. Coba lagi.";
+          }
+
+          document.getElementById("locationText").innerText = message;
+          console.log(error);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 10000
+        }
+      );
+    }
+
+    function updateDriverLocation(lat, lng) {
+      if (!map || !driverMarker) return;
+
+      driverMarker.setLatLng([lat, lng]);
+      driverCircle.setLatLng([lat, lng]);
+
+      if (isOnline) {
+        map.setView([lat, lng], map.getZoom());
+      }
+    }
+
+    function centerToDriver() {
+      if (!map) return;
+
+      map.setView([currentLat, currentLng], 17);
+    }
+
+    function toggleOnline() {
+      isOnline = !isOnline;
+
+      const statusBtn = document.getElementById("statusBtn");
+      const statusText = document.getElementById("statusText");
+
+      if (isOnline) {
+        statusBtn.classList.add("online");
+        statusText.innerText = "Online";
+        centerToDriver();
+      } else {
+        statusBtn.classList.remove("online");
+        statusText.innerText = "Offline";
+      }
+    }
+
+    window.addEventListener("beforeunload", function() {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    });
+  </script>
+
+</body>
+</html>
