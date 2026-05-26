@@ -381,20 +381,47 @@
 
     container.innerHTML = "";
 
-    if(!data){
-      container.innerHTML = `
-        <div class="order-text">
-          Belum ada order masuk.
-        </div>
-      `;
-      return;
-    }
+ if(!data){
+  container.innerHTML = `
+    <div class="order-text">
+      Belum ada order masuk.
+    </div>
+  `;
+  return;
+}
 
-    Object.entries(data).reverse().forEach(([id, order]) => {
+let adaOrder = false;
 
-      if(order.status !== "menunggu_driver"){
-        return;
-      }
+Object.entries(data).reverse().forEach(([id, order]) => {
+
+  if (order.status !== "menunggu_driver") {
+    return;
+  }
+
+  adaOrder = true;
+
+  const card = document.createElement("div");
+  card.className = "order-card";
+
+  card.innerHTML = `
+    <div class="order-title">
+      Order Baru
+    </div>
+  `;
+
+  container.appendChild(card);
+
+});
+
+if (!adaOrder) {
+  container.innerHTML = `
+    <div class="order-text">
+      Belum ada order masuk.
+    </div>
+  `;
+}
+
+  adaOrder = true;
 
       const card = document.createElement("div");
       card.className = "order-card";
