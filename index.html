@@ -375,51 +375,60 @@
   const ordersRef = ref(db, "orders");
 
   onValue(ordersRef, (snapshot) => {
+  const data = snapshot.val();
+  const container = document.getElementById("ordersContainer");
 
-    const data = snapshot.val();
-    const container = document.getElementById("ordersContainer");
+  container.innerHTML = "";
 
-    container.innerHTML = "";
-
- if(!data){
-  container.innerHTML = `
-    <div class="order-text">
-      Belum ada order masuk.
-    </div>
-  `;
-  return;
-}
-
-let adaOrder = false;
-
-Object.entries(data).reverse().forEach(([id, order]) => {
-
-  if (order.status !== "menunggu_driver") {
+  if (!data) {
+    container.innerHTML = `
+      <div class="order-text">Belum ada order masuk.</div>
+    `;
     return;
   }
 
-  adaOrder = true;
+  let adaOrder = false;
 
-  const card = document.createElement("div");
-  card.className = "order-card";
+  Object.entries(data).reverse().forEach(([id, order]) => {
+    if (order.status !== "menunggu_driver") {
+      return;
+    }
 
-  card.innerHTML = `
-    <div class="order-title">
-      Order Baru
-    </div>
-  `;
+    adaOrder = true;
 
-  container.appendChild(card);
+    const card = document.createElement("div");
+    card.className = "order-card";
 
+    card.innerHTML = `
+      <div class="order-title">Order Baru</div>
+
+      <div class="order-text">Nama: ${order.customerName || "-"}</div>
+      <div class="order-text">HP: ${order.customerPhone || "-"}</div>
+      <div class="order-text">Jarak: ${order.jarakKm || "-"} km</div>
+      <div class="order-text">Tarif: ${order.tarifText || "-"}</div>
+      <div class="order-text">Status: ${order.status}</div>
+      <div class="order-text">Waktu: ${order.waktu || "-"}</div>
+
+      <button class="btn-ambil">Ambil Order</button>
+    `;
+
+    card.querySelector(".btn-ambil").onclick = () => {
+      update(ref(db, "orders/" + id), {
+        status: "driver_menuju_penumpang"
+      });
+
+      alert("Order berhasil diambil!");
+    };
+
+    container.appendChild(card);
+  });
+
+  if (!adaOrder) {
+    container.innerHTML = `
+      <div class="order-text">Belum ada order masuk.</div>
+    `;
+  }
 });
-
-if (!adaOrder) {
-  container.innerHTML = `
-    <div class="order-text">
-      Belum ada order masuk.
-    </div>
-  `;
-}
 
   adaOrder = true;
 
