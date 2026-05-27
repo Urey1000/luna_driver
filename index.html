@@ -28,7 +28,7 @@
     .location-text{font-size:14px;color:var(--text-gray);margin-bottom:12px;line-height:1.5}
     .order-card{background:#f8fafc;border-radius:14px;padding:14px;margin-bottom:12px;border:1px solid var(--border)}
     .order-title{font-weight:700;margin-bottom:8px;color:var(--dark)}.order-text{font-size:13px;color:var(--text-gray);margin-bottom:5px;line-height:1.4}
-    .btn-ambil{width:100%;margin-top:10px;padding:12px;border:none;border-radius:12px;background:var(--primary);color:#fff;font-weight:700;cursor:pointer}
+    .btn-ambil{width:100%;margin-top:10px;padding:12px;border:none;border-radius:12px;background:var(--primary);color:#fff;font-weight:700;cursor:pointer}.btn-jalan{background:#3b82f6}.btn-selesai{background:#f59e0b}
     .empty{font-size:13px;color:var(--text-gray);background:#f1f5f9;border-radius:12px;padding:12px;text-align:center}
   </style>
 </head>
@@ -134,15 +134,105 @@ const firebaseConfig = {
       if(!data){container.innerHTML='<div class="empty">Belum ada order masuk.</div>';return}
       let adaOrder=false;
       Object.entries(data).reverse().forEach(([id,order])=>{
-        if(!order||order.status!=="menunggu_driver")return;
+        if(!order)return;
+
+        const milikDriverIni = order.driverId===driverData.phone || order.driverPhone===driverData.phone;
+
+        const bolehTampil =
+          order.status==="menunggu_driver" ||
+          (milikDriverIni && order.status==="driver_menuju_penumpang") ||
+          (milikDriverIni && order.status==="perjalanan_dimulai");
+
+        if(!bolehTampil)return;
+
         adaOrder=true;
-        if(!lastOrderIds[id]){lastOrderIds[id]=true; if(isOnline)playSound("order");}
-        const card=document.createElement("div"); card.className="order-card";
-        card.innerHTML=`<div class="order-title">Order Baru</div><div class="order-text">Nama: ${order.customerName||"-"}</div><div class="order-text">HP: ${order.customerPhone||"-"}</div><div class="order-text">Jarak: ${order.jarakKm||"-"} km</div><div class="order-text">Tarif: ${order.tarifText||"-"}</div><div class="order-text">Waktu: ${order.waktu||"-"}</div><button type="button" class="btn-ambil">Ambil Order</button>`;
-        card.querySelector(".btn-ambil").onclick=()=>{
-          if(!isOnline){alert("Aktifkan status Online dulu sebelum ambil order.");return}
-          update(ref(db,"orders/"+id),{status:"driver_menuju_penumpang",driverId:driverData.phone||"",driverName:driverData.name||"Driver Luna",driverPhone:driverData.phone||"",driverVehicle:driverData.vehicle||"-",driverPlate:driverData.plate||"-",driverLat:currentLat,driverLng:currentLng,acceptedAt:Date.now()}).then(()=>{playSound("success");alert("Order berhasil diambil!")}).catch(err=>alert("Gagal ambil order: "+err.message));
-        };
+
+        if(order.status==="menunggu_driver" && !lastOrderIds[id]){
+          lastOrderIds[id]=true;
+          if(isOnline)playSound("order");
+        }
+
+        let tombolHTML="";
+
+        if(order.status==="menunggu_driver"){
+          tombolHTML=`<button type="button" class="btn-ambil btn-terima">Ambil Order</button>`;
+        }
+
+        if(order.status==="driver_menuju_penumpang" && milikDriverIni){
+          tombolHTML=`<button type="button" class="btn-ambil btn-jalan">Mulai Perjalanan</button>`;
+        }
+
+        if(order.status==="perjalanan_dimulai" && milikDriverIni){
+          tombolHTML=`<button type="button" class="btn-ambil btn-selesai">Selesaikan Order</button>`;
+        }
+
+        const card=document.createElement("div");
+        card.className="order-card";
+
+        card.innerHTML=`
+          <div class="order-title">Order</div>
+          <div class="order-text">Nama: ${order.customerName||"-"}</div>
+          <div class="order-text">HP: ${order.customerPhone||"-"}</div>
+          <div class="order-text">Asal: ${order.alamatAsal || (order.asal && order.asal.alamat) || "-"}</div>
+          <div class="order-text">Tujuan: ${order.alamatTujuan || (order.tujuan && order.tujuan.alamat) || "-"}</div>
+          <div class="order-text">Jarak: ${order.jarakKm||"-"} km</div>
+          <div class="order-text">Tarif: ${order.tarifText||"-"}</div>
+          <div class="order-text">Status: ${order.status||"-"}</div>
+          <div class="order-text">Waktu: ${order.waktu||"-"}</div>
+          ${tombolHTML}
+        `;
+
+        const btnTerima=card.querySelector(".btn-terima");
+        if(btnTerima){
+          btnTerima.onclick=()=>{
+            if(!isOnline){
+              alert("Aktifkan status Online dulu sebelum ambil order.");
+              return;
+            }
+
+            update(ref(db,"orders/"+id),{
+              status:"driver_menuju_penumpang",
+              driverId:driverData.phone||"",
+              driverName:driverData.name||"Driver Luna",
+              driverPhone:driverData.phone||"",
+              driverVehicle:driverData.vehicle||"-",
+              driverPlate:driverData.plate||"-",
+              driverLat:currentLat,
+              driverLng:currentLng,
+              acceptedAt:Date.now()
+            }).then(()=>{
+              playSound("success");
+              alert("Order berhasil diambil!");
+            }).catch(err=>alert("Gagal ambil order: "+err.message));
+          };
+        }
+
+        const btnJalan=card.querySelector(".btn-jalan");
+        if(btnJalan){
+          btnJalan.onclick=()=>{
+            update(ref(db,"orders/"+id),{
+              status:"perjalanan_dimulai",
+              startedAt:Date.now()
+            }).then(()=>{
+              playSound("success");
+              alert("Perjalanan dimulai!");
+            }).catch(err=>alert("Gagal mulai perjalanan: "+err.message));
+          };
+        }
+
+        const btnSelesai=card.querySelector(".btn-selesai");
+        if(btnSelesai){
+          btnSelesai.onclick=()=>{
+            update(ref(db,"orders/"+id),{
+              status:"selesai",
+              selesaiAt:Date.now()
+            }).then(()=>{
+              playSound("success");
+              alert("Order selesai!");
+            }).catch(err=>alert("Gagal menyelesaikan order: "+err.message));
+          };
+        }
+
         container.appendChild(card);
       });
       if(!adaOrder)container.innerHTML='<div class="empty">Belum ada order masuk.</div>';
